@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/play_playlist"
+        android:title="Play from this song"/>
+    <item
+        android:id="@+id/remove_playlist"
+        android:title="Remove from playlist"/>
+</menu>
