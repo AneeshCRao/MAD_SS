@@ -13,6 +13,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.ContextMenu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -27,7 +29,8 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private static final int MY_PERMISSION_REQUEST = 1;
-    ArrayList<String> arrayList;
+    ArrayList<String> displayList;          //List to be displayed (Song name + artist name)
+    ArrayList<String> songNamesList;        //Only song names
     ArrayList<String> pathList;
     MediaPlayer mediaPlayer;
     ListView listView;
@@ -39,19 +42,59 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+        mediaPlayer = new MediaPlayer();
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
             ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSION_REQUEST);
-        }
         else
-            doStuff();
+            DisplaySongs();
     }
 
-    public void doStuff () {
+
+
+    //Context menu - when he long presses an option in the list of songs -> Play, Add to playlist
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        getMenuInflater().inflate(R.menu.menu1, menu);
+    }
+
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
+        int list_index = (int)info.id;
+        switch(item.getItemId()) {
+            case R.id.play:
+                String filePath = pathList.get(list_index);
+
+                if (mediaPlayer.isPlaying())
+                    mediaPlayer.stop();
+                mediaPlayer = new MediaPlayer();
+                try {
+                    mediaPlayer.setDataSource(filePath);
+                    mediaPlayer.prepare();
+                    mediaPlayer.start();
+                }catch(Exception e) {
+                    e.printStackTrace();
+                }
+                return true;
+            case R.id.add_playlist:
+
+                Toast.makeText(this, songNamesList.get(list_index) + " added to playlist", Toast.LENGTH_SHORT).show();
+                return true;
+            default:
+                return super.onContextItemSelected(item);
+        }
+    }
+
+
+
+    public void DisplaySongs () {
         listView = (ListView)findViewById(R.id.lv1);
-        arrayList = new ArrayList<>();
+        displayList = new ArrayList<>();
+        songNamesList = new ArrayList<>();
         pathList = new ArrayList<>();
         getMusic();
-        adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, arrayList);
+        adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, displayList);
         listView.setAdapter(adapter);
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -59,10 +102,11 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 TextView tv = (TextView)view;
                 String s = tv.getText().toString();
-                Toast.makeText(getApplicationContext(), Long.toString(l), Toast.LENGTH_SHORT).show();
 
-                //String filePath = Environment.getExternalStorageDirectory()+"/yourfolderNAme/yopurfile.mp3";
                 String filePath = pathList.get(i);
+
+                if (mediaPlayer.isPlaying())
+                    mediaPlayer.stop();
                 mediaPlayer = new MediaPlayer();
                 try {
                     mediaPlayer.setDataSource(filePath);
@@ -74,6 +118,10 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
+        registerForContextMenu(listView);
+
+
     }
 
     public void getMusic () {
@@ -90,7 +138,8 @@ public class MainActivity extends AppCompatActivity {
                 String currentTitle = songCursor.getString(songTitle);
                 String currentArtist = songCursor.getString(songArtist);
                 String currentPath = songCursor.getString(songPath);
-                arrayList.add(currentTitle + ":\n" + currentArtist);
+                displayList.add(currentTitle + "\n" + currentArtist);
+                songNamesList.add(currentTitle);
                 pathList.add(currentPath);
             } while (songCursor.moveToNext());
 
@@ -103,7 +152,7 @@ public class MainActivity extends AppCompatActivity {
             case MY_PERMISSION_REQUEST: {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(this, "Permission granted", Toast.LENGTH_SHORT).show();
-                    doStuff();
+                    DisplaySongs();
                 }
                 else {
                     Toast.makeText(this, "No permission granted", Toast.LENGTH_SHORT).show();
