@@ -2,6 +2,7 @@ package com.example.songslist;
 
 import android.Manifest;
 import android.content.ContentResolver;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.media.MediaPlayer;
@@ -32,10 +33,13 @@ public class MainActivity extends AppCompatActivity {
     ArrayList<String> displayList;          //List to be displayed (Song name + artist name)
     ArrayList<String> songNamesList;        //Only song names
     ArrayList<String> pathList;
-    MediaPlayer mediaPlayer;
+    static MediaPlayer mediaPlayer;
     ListView listView;
     ArrayAdapter<String> adapter;
 
+    int titleIndex, songPathIndex, artistIndex;
+
+    int currentIndex = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +47,28 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mediaPlayer = new MediaPlayer();
+        Playlist.displayList = new ArrayList<>();
+        Playlist.pathList = new ArrayList<>();
+        Playlist.songNamesList = new ArrayList<>();
+
+        //When song finishes, play next song in list
+        MainActivity.mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                currentIndex = (currentIndex + 1) % songNamesList.size();
+                String filePath = pathList.get(currentIndex);
+                try {
+                    MainActivity.mediaPlayer.reset();
+                    MainActivity.mediaPlayer.setDataSource(filePath);
+                    MainActivity.mediaPlayer.prepare();
+                    MainActivity.mediaPlayer.start();
+                }catch(Exception e) {
+                    Toast.makeText(getApplicationContext(), "Error",Toast.LENGTH_SHORT).show();
+                    e.printStackTrace();
+                }
+            }
+        });
+
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
             ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSION_REQUEST);
         else
@@ -65,19 +91,22 @@ public class MainActivity extends AppCompatActivity {
         switch(item.getItemId()) {
             case R.id.play:
                 String filePath = pathList.get(list_index);
-
                 if (mediaPlayer.isPlaying())
                     mediaPlayer.stop();
-                mediaPlayer = new MediaPlayer();
                 try {
+                    mediaPlayer.reset();
                     mediaPlayer.setDataSource(filePath);
                     mediaPlayer.prepare();
                     mediaPlayer.start();
                 }catch(Exception e) {
                     e.printStackTrace();
                 }
+                currentIndex = list_index;
                 return true;
             case R.id.add_playlist:
+                Playlist.displayList.add(displayList.get(list_index));
+                Playlist.songNamesList.add(songNamesList.get(list_index));
+                Playlist.pathList.add(pathList.get(list_index));
 
                 Toast.makeText(this, songNamesList.get(list_index) + " added to playlist", Toast.LENGTH_SHORT).show();
                 return true;
@@ -102,26 +131,23 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 TextView tv = (TextView)view;
                 String s = tv.getText().toString();
-
+                currentIndex = i;
                 String filePath = pathList.get(i);
 
                 if (mediaPlayer.isPlaying())
                     mediaPlayer.stop();
-                mediaPlayer = new MediaPlayer();
                 try {
+                    Toast.makeText(getApplicationContext(), "Bruh", Toast.LENGTH_SHORT).show();
+                    mediaPlayer.reset();
                     mediaPlayer.setDataSource(filePath);
                     mediaPlayer.prepare();
                     mediaPlayer.start();
                 }catch(Exception e) {
                     e.printStackTrace();
                 }
-
             }
         });
-
         registerForContextMenu(listView);
-
-
     }
 
     public void getMusic () {
@@ -130,14 +156,14 @@ public class MainActivity extends AppCompatActivity {
         Cursor songCursor = contentResolver.query(songUri, null, null, null, null);
 
         if (songCursor != null && songCursor.moveToFirst()) {
-            int songTitle = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
-            int songArtist = songCursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
-            int songPath = songCursor.getColumnIndex(MediaStore.Audio.Media.DATA);
+            titleIndex = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
+            artistIndex = songCursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
+            songPathIndex = songCursor.getColumnIndex(MediaStore.Audio.Media.DATA);
 
             do {
-                String currentTitle = songCursor.getString(songTitle);
-                String currentArtist = songCursor.getString(songArtist);
-                String currentPath = songCursor.getString(songPath);
+                String currentTitle = songCursor.getString(titleIndex);
+                String currentArtist = songCursor.getString(artistIndex);
+                String currentPath = songCursor.getString(songPathIndex);
                 displayList.add(currentTitle + "\n" + currentArtist);
                 songNamesList.add(currentTitle);
                 pathList.add(currentPath);
@@ -164,6 +190,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+
+    public void viewPlaylist(View view) {
+        if (Playlist.displayList.size() == 0){
+            Toast.makeText(this, "No songs in playlist", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent i = new Intent(this, Playlist.class);
+        startActivity(i);
+    }
 
 
 }
