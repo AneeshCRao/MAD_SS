@@ -104,6 +104,10 @@ public class MainActivity extends AppCompatActivity {
                 currentIndex = list_index;
                 return true;
             case R.id.add_playlist:
+                if (Playlist.displayList.indexOf(displayList.get(list_index)) >= 0) {
+                    Toast.makeText(this, "This song is already added to the playlist", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
                 Playlist.displayList.add(displayList.get(list_index));
                 Playlist.songNamesList.add(songNamesList.get(list_index));
                 Playlist.pathList.add(pathList.get(list_index));
